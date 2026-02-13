@@ -35,14 +35,20 @@ git pull origin main
 git checkout -b fix/issue-<NUMBER>
 ```
 
-## Step 4: Develop the fix
+## Step 4: Develop the fix using Codex
 
-Use `read_file` to examine the relevant source files. Use `write_file` or `edit_file` to make changes.
+Use OpenAI Codex in **YOLO mode** (full-auto, no confirmation prompts) to implement the fix:
 
-Rules:
+```bash
+codex --approval-mode full-auto "Read issue #<NUMBER> from this repo and fix it. Run tests after making changes."
+```
+
+Codex will autonomously read the issue, modify files, and run verification.
+
+If Codex is not available, fall back to manual development:
+- Use `read_file` to examine relevant source files
+- Use `write_file` or `edit_file` to make changes
 - **Minimal changes only** — fix the reported issue, nothing else
-- **Do not modify** files outside `nanobot/` directory unless necessary
-- **Add comments** explaining the change (in English)
 
 ## Step 5: Verify
 
