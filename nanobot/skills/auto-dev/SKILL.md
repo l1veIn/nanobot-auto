@@ -29,8 +29,9 @@ If no issues found, stop and report "No open issues".
 Launch the background development script. **Do NOT wait for it to finish.**
 
 ```bash
-nohup bash nanobot/skills/auto-dev/scripts/dev-dispatch.sh <NUMBER> > /dev/null 2>&1 &
-echo "Dispatched issue #<NUMBER> to Codex (PID: $!)"
+SESSION_NAME="codex-issue-<NUMBER>"
+tmux new-session -d -s "$SESSION_NAME" "bash nanobot/skills/auto-dev/scripts/dev-dispatch.sh <NUMBER>"
+echo "Dispatched issue #<NUMBER> to Codex (tmux session: $SESSION_NAME)"
 ```
 
 This script will independently:
