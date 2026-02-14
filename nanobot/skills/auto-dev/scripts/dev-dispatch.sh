@@ -13,8 +13,10 @@ ISSUE_NUMBER=$1
 REPO="l1veIn/nanobot-auto"
 WORK_DIR=""
 
-# === Clean up old codex sessions (prevent accumulation) ===
+# === Clean up old codex sessions (prevent accumulation, skip current) ===
+CURRENT_SESSION="codex-issue-${ISSUE_NUMBER}"
 for old in $(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^codex-issue-'); do
+  [ "$old" = "$CURRENT_SESSION" ] && continue
   tmux kill-session -t "$old" 2>/dev/null || true
 done
 
