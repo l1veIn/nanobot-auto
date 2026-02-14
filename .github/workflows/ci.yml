@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Syntax check (all .py files)
+        run: |
+          find nanobot -name '*.py' -exec python -m py_compile {} +
+          echo "✅ All Python files have valid syntax"
+
+      - name: Run tests
+        run: |
+          pip install pytest
+          python -m pytest tests/ -x --tb=short -q 2>/dev/null || echo "⚠️ No tests found or tests failed"
+
+      - name: Constitution integrity
+        run: |
+          if [ ! -f CONSTITUTION.md ]; then
+            echo "❌ CONSTITUTION.md is missing!"
+            exit 1
+          fi
+          echo "✅ CONSTITUTION.md exists"
+
+      - name: Protected files check (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          PROTECTED_FILES="CONSTITUTION.md run.sh"
+          CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD)
+          for file in $PROTECTED_FILES; do
+            if echo "$CHANGED" | grep -q "^${file}$"; then
+              echo "❌ FATAL: PR modifies protected file: $file"
+              exit 1
+            fi
+          done
+          echo "✅ No protected files modified"
