@@ -1,12 +1,14 @@
 ---
 name: log-miner
-description: "Analyze recent nanobot session logs to detect errors, anomalies, and improvement opportunities. Always produces at least one issue."
+description: "Analyze log files in a target directory to detect errors, anomalies, and improvement opportunities. Discovers log format automatically. Always produces at least one issue."
 metadata: {"nanobot":{"emoji":"🔍","requires":{"bins":["gh"]}}}
 ---
 
 # Log Miner
 
-Analyze nanobot's own session logs. **You must always produce at least one issue per run** — either a bug report, an enhancement proposal, or a self-improvement task.
+Analyze log files to detect problems and improvement opportunities. **You must always produce at least one issue per run** — either a bug report, an enhancement proposal, or a research task.
+
+Target directory: `~/.nanobot/sessions`
 
 ## Philosophy
 
@@ -30,7 +32,17 @@ head -50 ~/.nanobot/sessions/<specific_file>.jsonl
 
 **Never read entire raw log files.** Use targeted reads.
 
-Read the content of recent log files. Don't just grep keywords — **read and understand the conversations**.
+## Step 1.5: Explore log format
+
+Before analysis, understand the format of the logs you're dealing with:
+
+```bash
+head -3 ~/.nanobot/sessions/<any_recent_file>
+```
+
+Determine: Is it JSON/JSONL? Plain text? CSV? What fields exist? What does each line represent?
+
+Adapt your analysis strategy to the discovered format. Don't assume — verify.
 
 ## Step 2: Multi-layer analysis
 
