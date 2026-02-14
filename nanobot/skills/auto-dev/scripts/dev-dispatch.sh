@@ -56,10 +56,10 @@ cd "$WORK_DIR"
 BRANCH="fix/issue-${ISSUE_NUMBER}"
 git checkout -b "$BRANCH"
 
-# Run Codex with timeout
+# Run Codex with timeout (use perl for macOS compatibility)
 echo "Running Codex (timeout: ${CODEX_TIMEOUT}s)..."
 CODEX_EXIT=0
-timeout "$CODEX_TIMEOUT" codex --approval-mode full-auto \
+perl -e 'alarm shift; exec @ARGV' "$CODEX_TIMEOUT" codex exec --full-auto \
   "You are working on GitHub issue #${ISSUE_NUMBER} in repo ${REPO}.
 Title: ${TITLE}
 Body: ${BODY}
@@ -72,7 +72,7 @@ Rules:
 - If there are tests, run 'python -m pytest tests/ -x --tb=short'" \
   || CODEX_EXIT=$?
 
-if [ "$CODEX_EXIT" -eq 124 ]; then
+if [ "$CODEX_EXIT" -eq 142 ]; then  # SIGALRM = 142 on macOS
   echo "⚠️ Codex timed out after ${CODEX_TIMEOUT}s"
   gh issue comment "$ISSUE_NUMBER" --repo "$REPO" \
     --body "🤖 auto-dev: Codex timed out after ${CODEX_TIMEOUT}s. Task may be too complex. Leaving open for next cycle." \

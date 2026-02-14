@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -42,7 +44,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           PROTECTED_FILES="CONSTITUTION.md run.sh"
-          CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD)
+          CHANGED=$(git diff --name-only origin/main...HEAD)
           for file in $PROTECTED_FILES; do
             if echo "$CHANGED" | grep -q "^${file}$"; then
               echo "❌ FATAL: PR modifies protected file: $file"
