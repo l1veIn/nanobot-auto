@@ -31,6 +31,7 @@ Launch the background development script. **Do NOT wait for it to finish.**
 ```bash
 SESSION_NAME="codex-issue-<NUMBER>"
 tmux new-session -d -s "$SESSION_NAME" "bash nanobot/skills/auto-dev/scripts/dev-dispatch.sh <NUMBER>"
+tmux set-option -t "$SESSION_NAME" remain-on-exit on
 echo "Dispatched issue #<NUMBER> to Codex (tmux session: $SESSION_NAME)"
 ```
 

@@ -13,6 +13,11 @@ ISSUE_NUMBER=$1
 REPO="l1veIn/nanobot-auto"
 WORK_DIR=""
 
+# === Clean up old codex sessions (prevent accumulation) ===
+for old in $(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^codex-issue-'); do
+  tmux kill-session -t "$old" 2>/dev/null || true
+done
+
 # === Cleanup trap — always runs, even on timeout/crash ===
 cleanup() {
   if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
