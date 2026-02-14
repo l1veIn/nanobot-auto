@@ -73,22 +73,29 @@ gh issue create --repo l1veIn/nanobot-auto \
 
 ## Step 5: Self-reflection
 
-If after all analysis you found **nothing at all** from the logs, you MUST create a self-improvement issue about log-miner itself:
+If after all analysis you found **nothing actionable** from the logs, you MUST create a **research task** — not a code change request, but an investigation into why the analysis came up empty:
 
 ```bash
 gh issue create --repo l1veIn/nanobot-auto \
-  --title "[enhance] Improve log-miner: <specific weakness found>" \
-  --body "log-miner was unable to extract useful insights from today's logs.
+  --title "[research] Investigate: why did log-miner find nothing on <date>?" \
+  --body "## Context
+log-miner ran on <date> and was unable to extract useful insights.
 
 ## What was analyzed
-<summary of logs examined>
+<summary of log files examined, number of lines, sessions covered>
 
-## Why nothing was found
-<honest assessment: too few logs? analysis too shallow? wrong keywords?>
+## Hypotheses to investigate
+<list possible reasons, e.g.>
+- Logs are too sparse — bot isn't being used enough to generate useful data
+- Analysis is too shallow — only surface-level keyword matching, missing behavioral patterns
+- Log format lacks useful signals — JSONL structure doesn't capture what we need
+- Everything genuinely works fine — should we look at enhancement opportunities instead?
 
-## Proposed improvement
-<concrete suggestion to make log-miner smarter, e.g. add new analysis patterns, parse JSONL structure instead of grep, track metrics over time>" \
+## Suggested investigation approach
+<concrete next steps: read the JSONL schema, compare with what other log analysis tools look for, interview the log structure to find hidden signals>" \
   --label "auto-report"
 ```
 
-This ensures the system **always has work to do** and **always improves**.
+The research task lets auto-dev **investigate first, then decide** whether code changes are needed — rather than blindly modifying log-miner without understanding the root cause.
+
+This ensures the system **always has work to do** and **always learns**.
