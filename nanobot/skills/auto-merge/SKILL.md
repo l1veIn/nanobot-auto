@@ -24,9 +24,11 @@ If no PRs found, stop.
 gh pr checks <NUMBER> --repo l1veIn/nanobot-auto
 ```
 
-- **Checks failed** → go to Step 4 (close)
-- **Checks pending** → skip, retry next run
-- **All passed** → continue to Step 3 (code review)
+- **Checks failed** → go to Step 6 (close with reason)
+- **Checks pending / no checks** → note CI status, but **still continue** to Step 3 and Step 4 (code review happens regardless)
+- **All passed** → continue to Step 3
+
+**Important:** Code review (Steps 3-4) ALWAYS runs, even without CI. A PR can be rejected by code review alone. A PR can only be MERGED if CI passes AND code review passes.
 
 ## Step 3: Constitution check (FIRST)
 
