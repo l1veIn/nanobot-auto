@@ -1,16 +1,12 @@
 ---
 name: auto-merge
-description: "Review open PRs, merge if CI passes, close if CI fails, then self-update."
+description: "Review open PRs with code quality checks, merge if CI passes AND code is sound, close if low quality, then self-update."
 metadata: {"nanobot":{"emoji":"🔀","requires":{"bins":["gh","git"]}}}
 ---
 
 # Auto Merge
 
-Review open PRs and merge those that pass CI. Self-update after merge.
-
-## When triggered
-
-This skill runs as a daily cron task.
+Review open PRs: check CI, review code quality, merge good ones, reject bad ones. Self-update after merge.
 
 ## Step 1: List open PRs
 
@@ -18,37 +14,70 @@ This skill runs as a daily cron task.
 gh pr list --repo l1veIn/nanobot-auto --state open --json number,title,headRefName --jq '.[] | "\(.number) \(.title)"'
 ```
 
-If no PRs found, stop — nothing to do.
+If no PRs found, stop.
 
-## Step 2: Check CI status for each PR
+## Step 2: Check CI status
 
 ```bash
 gh pr checks <NUMBER> --repo l1veIn/nanobot-auto
 ```
 
-Classify each PR:
-- **All checks passed** → ready to merge
-- **Checks failed** → close with comment
-- **Checks pending** → skip, will retry next run
+- **Checks failed** → go to Step 4 (close)
+- **Checks pending** → skip, retry next run
+- **All passed** → continue to Step 3 (code review)
 
-## Step 3: Merge passing PRs
+## Step 3: Code review (CRITICAL)
+
+CI passing is NOT enough. You must review the actual changes:
+
+```bash
+gh pr diff <NUMBER> --repo l1veIn/nanobot-auto
+```
+
+**Review checklist — reject if ANY of these are true:**
+
+1. **Production code modified just for tests** — e.g. making required params optional, adding dead code paths
+2. **Signature changes to public APIs** — changing function signatures without clear justification from the issue
+3. **More deletions than additions in core modules** — removing functionality without explanation
+4. **Hardcoded paths, credentials, or secrets** in the diff
+5. **Empty or trivial implementation** — functions that just `pass` or return constants
+6. **Unrelated changes** — diff touches files not mentioned in the issue
+
+**Accept if:**
+- Changes are focused on what the issue describes
+- No production code is modified unnecessarily
+- Tests (if added) test real behavior, not mocked-out stubs
+- Code compiles and makes logical sense
+
+## Step 4: Merge good PRs
 
 ```bash
 gh pr merge <NUMBER> --repo l1veIn/nanobot-auto --squash --delete-branch
 ```
 
-## Step 4: Close failing PRs
+## Step 5: Close bad PRs
 
+For CI failures:
 ```bash
-gh pr close <NUMBER> --repo l1veIn/nanobot-auto --comment "CI checks failed. Closing this PR.
+gh pr close <NUMBER> --repo l1veIn/nanobot-auto --comment "❌ CI checks failed. Closing.
 
 Failed checks:
-<list failed check names and details>"
+<list failed check names>"
 ```
 
-## Step 5: Self-update and restart
+For code quality issues:
+```bash
+gh pr close <NUMBER> --repo l1veIn/nanobot-auto --comment "❌ Code review failed. Closing.
 
-After any successful merge, pull latest code, reinstall, then **exit the process** so the wrapper script (`run.sh`) restarts with the new code:
+Issues found:
+<list specific problems, e.g. 'Modified SessionManager.__init__ signature to make workspace optional — this breaks callers'>
+
+The original issue remains open for a better attempt next cycle."
+```
+
+## Step 6: Self-update and restart
+
+After any successful merge, pull latest and restart:
 
 ```bash
 git checkout main
@@ -56,12 +85,10 @@ git pull origin main
 pip install -e .
 ```
 
-After reporting what was merged, exit the process:
+Then exit so `run.sh` restarts with new code:
 
 ```bash
 kill $$
 ```
 
-The `run.sh` wrapper will automatically restart the gateway in 5 seconds, with full shell environment (PATH, gh, codex, etc.) preserved.
-
-**IMPORTANT**: Use `./run.sh` instead of `nanobot gateway` to start the bot. This enables auto-restart after self-update.
+**IMPORTANT**: Use `./run.sh` to start the bot, not `nanobot gateway` directly.
