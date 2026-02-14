@@ -1,33 +1,24 @@
 ---
 name: auto-dev
-description: "Pick an open auto-report issue, develop a fix, verify with py_compile, and create a pull request."
-metadata: {"nanobot":{"emoji":"🛠️","requires":{"bins":["gh","git"]}}}
+description: "Pick an open auto-report issue, use Codex YOLO mode to develop a fix, then create a pull request."
+metadata: {"nanobot":{"emoji":"🛠️","requires":{"bins":["gh","git","codex"]}}}
 ---
 
 # Auto Dev
 
-Pick an open issue, develop a fix, and submit a PR.
+Pick an open issue, delegate development to Codex, and submit a PR.
 
-## When triggered
+**IMPORTANT**: You are the project manager, NOT the developer. Your job is to find the issue, set up the branch, call Codex to do the work, and submit the PR. Do NOT write code yourself — let Codex do it.
 
-This skill runs as a daily cron task. Process one issue per run.
-
-## Step 1: Find an issue to work on
+## Step 1: Find an issue
 
 ```bash
 gh issue list --repo l1veIn/nanobot-auto --label auto-report --state open --json number,title,body --limit 1
 ```
 
-If no issues found, stop — nothing to do.
+If no issues found, stop.
 
-## Step 2: Analyze the issue
-
-Read the issue title and body. Understand:
-- What is the problem?
-- Which file(s) need to be changed?
-- What is the expected fix?
-
-## Step 3: Prepare workspace
+## Step 2: Prepare branch
 
 ```bash
 git checkout main
@@ -35,64 +26,36 @@ git pull origin main
 git checkout -b fix/issue-<NUMBER>
 ```
 
-## Step 4: Develop the fix using Codex
+## Step 3: Delegate to Codex (YOLO mode)
 
-Use OpenAI Codex in **YOLO mode** (full-auto, no confirmation prompts) to implement the fix:
-
-```bash
-codex --approval-mode full-auto "Read issue #<NUMBER> from this repo and fix it. Run tests after making changes."
-```
-
-Codex will autonomously read the issue, modify files, and run verification.
-
-If Codex is not available, fall back to manual development:
-- Use `read_file` to examine relevant source files
-- Use `write_file` or `edit_file` to make changes
-- **Minimal changes only** — fix the reported issue, nothing else
-
-## Step 5: Verify
-
-Run syntax check on every modified `.py` file:
+This is the core step. Run Codex in full-auto mode and let it handle everything:
 
 ```bash
-python -m py_compile <modified_file.py>
+codex --approval-mode full-auto "You are working on GitHub issue #<NUMBER> in repo l1veIn/nanobot-auto. The issue title is: <TITLE>. The issue body is: <BODY>. Please read the relevant source code, implement the fix or enhancement, and run 'python -m py_compile' on any modified .py files to verify syntax. If there are tests in tests/, run 'python -m pytest tests/ -x --tb=short' as well."
 ```
 
-If any file fails compilation, revert the change and try a different approach.
+Wait for Codex to complete. If Codex fails or is not available:
+- Log the failure
+- Abandon this issue for now (do NOT attempt manual development)
 
-If tests exist, run them:
+## Step 4: Verify Codex output
+
+Check if Codex actually made changes:
 
 ```bash
-python -m pytest tests/ -x --tb=short 2>&1 | tail -30
+git diff --stat
 ```
 
-If tests fail, investigate and fix. If you cannot fix tests, abandon this issue.
+If no changes were made, abandon — Codex couldn't solve it.
 
-## Step 6: Commit and push
+## Step 5: Commit, push, create PR
 
 ```bash
 git add -A
-git commit -m "fix: <concise description> (closes #<NUMBER>)"
+git commit -m "fix: <description> (closes #<NUMBER>)"
 git push origin fix/issue-<NUMBER>
-```
-
-## Step 7: Create PR
-
-```bash
 gh pr create --repo l1veIn/nanobot-auto \
-  --title "fix: <concise description>" \
-  --body "Closes #<NUMBER>
-
-## Changes
-- <list what was changed and why>
-
-## Verification
-- py_compile: ✅
-- pytest: ✅ / ⚠️ no tests / ❌ (details)"
-```
-
-## Step 8: Clean up
-
-```bash
+  --title "fix: <description>" \
+  --body "Closes #<NUMBER> — developed by Codex in full-auto mode."
 git checkout main
 ```
