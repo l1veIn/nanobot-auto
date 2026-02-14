@@ -1,72 +1,94 @@
 ---
 name: log-miner
-description: "Analyze recent nanobot session logs to detect errors, anomalies, and patterns. Create GitHub issues for problems found."
+description: "Analyze recent nanobot session logs to detect errors, anomalies, and improvement opportunities. Always produces at least one issue."
 metadata: {"nanobot":{"emoji":"🔍","requires":{"bins":["gh"]}}}
 ---
 
 # Log Miner
 
-Analyze nanobot's own session logs to find problems and create issues.
+Analyze nanobot's own session logs. **You must always produce at least one issue per run** — either a bug report, an enhancement proposal, or a self-improvement task.
 
-## When triggered
+## Philosophy
 
-This skill runs as a daily cron task. Analyze logs from the past 24 hours only.
+You are not just an error scanner. You are an intelligence analyst. Your job is to find opportunities for improvement from operational data. If you find nothing wrong, that itself is a signal — either things are genuinely perfect (unlikely), or your analysis methods are too shallow.
 
-## Step 1: Find recent logs
+## Step 1: Gather data
 
 ```bash
 find ~/.nanobot/sessions -name '*.jsonl' -mtime -1
 ```
 
-If no files found, stop — nothing to analyze.
+Read the content of recent log files. Don't just grep keywords — **read and understand the conversations**.
 
-## Step 2: Scan for anomalies
+## Step 2: Multi-layer analysis
 
-```bash
-grep -c -i 'error\|failed\|timeout\|traceback\|exception\|panic' <file>
-```
+Analyze logs at three levels:
 
-Run this for each file found in Step 1. If total count is 0, stop — no issues to report.
+### Level A — Errors (surface)
+Scan for explicit failures: error, failed, timeout, traceback, exception, panic.
 
-## Step 3: Extract error context
+### Level B — Behavioral patterns (deeper)
+Look for signals that don't appear as errors but indicate problems:
+- **Abandoned conversations**: user started a task but never completed it
+- **Repeated attempts**: user asked the same thing multiple times (bot didn't solve it)
+- **Frustration signals**: user said "never mind", "forget it", "I'll do it myself"
+- **Long response times**: conversations where the bot took unusually long
+- **Tool failures**: tools that were called but produced unhelpful results
+- **Missing capabilities**: user asked for something the bot couldn't do
 
-For files with anomalies, extract the relevant lines with context:
+### Level C — Improvement opportunities (deepest)
+Even if everything works fine, look for:
+- **Code quality**: are there modules that lack tests, documentation, or type hints?
+- **Performance**: are there operations that could be optimized?
+- **Security**: are there potential security concerns in how tools operate?
+- **Skill gaps**: what skills could be added to make the bot more useful?
 
-```bash
-grep -n -i -B2 -A2 'error\|failed\|timeout\|traceback\|exception\|panic' <file> | head -100
-```
-
-## Step 4: Analyze and summarize
-
-Read the extracted errors. Identify:
-- **Pattern**: Is this a one-time error or recurring?
-- **Component**: Which tool/skill/channel is affected?
-- **Severity**: Is it blocking functionality or just a warning?
-- **Suggested fix**: What code change might resolve this?
-
-Only create an issue if the problem is **actionable** — skip transient network errors or user-caused issues.
-
-## Step 5: Check for duplicates
-
-Before creating a new issue, check if a similar one already exists:
+## Step 3: Check for duplicates
 
 ```bash
 gh issue list --repo l1veIn/nanobot-auto --label auto-report --state open --json number,title --jq '.[].title'
 ```
 
-If a similar issue exists, skip creation.
+Skip any issue that already exists.
 
-## Step 6: Create issue
+## Step 4: Create issues
 
+Create **at least one issue** per run. Use the appropriate label:
+
+### For bugs (Level A findings):
 ```bash
 gh issue create --repo l1veIn/nanobot-auto \
-  --title "[auto-report] <concise problem description>" \
-  --body "<detailed analysis from Step 4>" \
+  --title "[bug] <description>" \
+  --body "<analysis>" \
   --label "auto-report"
 ```
 
-The issue body should include:
-- Error pattern observed
-- Affected component/file
-- Frequency (how many times in 24h)
-- Suggested fix approach
+### For enhancements (Level B/C findings):
+```bash
+gh issue create --repo l1veIn/nanobot-auto \
+  --title "[enhance] <description>" \
+  --body "<analysis and proposed approach>" \
+  --label "auto-report"
+```
+
+## Step 5: Self-reflection
+
+If after all analysis you found **nothing at all** from the logs, you MUST create a self-improvement issue about log-miner itself:
+
+```bash
+gh issue create --repo l1veIn/nanobot-auto \
+  --title "[enhance] Improve log-miner: <specific weakness found>" \
+  --body "log-miner was unable to extract useful insights from today's logs.
+
+## What was analyzed
+<summary of logs examined>
+
+## Why nothing was found
+<honest assessment: too few logs? analysis too shallow? wrong keywords?>
+
+## Proposed improvement
+<concrete suggestion to make log-miner smarter, e.g. add new analysis patterns, parse JSONL structure instead of grep, track metrics over time>" \
+  --label "auto-report"
+```
+
+This ensures the system **always has work to do** and **always improves**.
