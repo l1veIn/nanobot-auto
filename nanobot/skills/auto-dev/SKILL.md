@@ -8,6 +8,8 @@ metadata: {"nanobot":{"emoji":"🛠️","requires":{"bins":["gh","git","codex"]}
 
 Pick an open issue, delegate development to Codex in an **isolated workspace**, and submit a PR.
 
+> **Governed by [CONSTITUTION.md](../../CONSTITUTION.md)** — Articles 1, 2, 3, 4.
+
 ## ⛔ Hard Rules (NEVER violate)
 
 1. **You are the project manager, NOT the developer.** You MUST NOT write, edit, or modify any source code yourself. All code changes come from Codex ONLY.

@@ -8,6 +8,8 @@ metadata: {"nanobot":{"emoji":"🔀","requires":{"bins":["gh","git"]}}}
 
 Review open PRs: check CI, review code quality, merge good ones, reject bad ones. Self-update after merge.
 
+> **Governed by [CONSTITUTION.md](../../CONSTITUTION.md)** — Articles 4, 6, 7. Enforces ALL articles.
+
 ## Step 1: List open PRs
 
 ```bash
@@ -26,7 +28,24 @@ gh pr checks <NUMBER> --repo l1veIn/nanobot-auto
 - **Checks pending** → skip, retry next run
 - **All passed** → continue to Step 3 (code review)
 
-## Step 3: Code review (CRITICAL)
+## Step 3: Constitution check (FIRST)
+
+Before any code review, check if the PR touches protected files:
+
+```bash
+gh pr diff <NUMBER> --repo l1veIn/nanobot-auto --name-only
+```
+
+**If the diff includes ANY of these files → REJECT IMMEDIATELY:**
+- `CONSTITUTION.md`
+- `run.sh`
+
+Close with:
+```bash
+gh pr close <NUMBER> --repo l1veIn/nanobot-auto --comment "❌ Constitutional violation. This PR modifies a protected file (CONSTITUTION.md or run.sh). These files may only be changed by the human operator. Rejected."
+```
+
+## Step 4: Code review
 
 CI passing is NOT enough. You must review the actual changes:
 
@@ -49,13 +68,13 @@ gh pr diff <NUMBER> --repo l1veIn/nanobot-auto
 - Tests (if added) test real behavior, not mocked-out stubs
 - Code compiles and makes logical sense
 
-## Step 4: Merge good PRs
+## Step 5: Merge good PRs
 
 ```bash
 gh pr merge <NUMBER> --repo l1veIn/nanobot-auto --squash --delete-branch
 ```
 
-## Step 5: Close bad PRs
+## Step 6: Close bad PRs
 
 For CI failures:
 ```bash
@@ -75,7 +94,7 @@ Issues found:
 The original issue remains open for a better attempt next cycle."
 ```
 
-## Step 6: Self-update and restart
+## Step 7: Self-update and restart
 
 After any successful merge, pull latest and restart:
 
