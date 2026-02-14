@@ -1,6 +1,6 @@
 ---
 name: auto-dev
-description: "Pick an open auto-report issue, use Codex YOLO mode to develop a fix in an isolated workspace, then create a pull request."
+description: "Pick an open auto-report issue, use Codex to develop a fix in an isolated workspace, then create a pull request."
 metadata: {"nanobot":{"emoji":"🛠️","requires":{"bins":["gh","git","codex"]}}}
 ---
 
@@ -8,7 +8,12 @@ metadata: {"nanobot":{"emoji":"🛠️","requires":{"bins":["gh","git","codex"]}
 
 Pick an open issue, delegate development to Codex in an **isolated workspace**, and submit a PR.
 
-**IMPORTANT**: You are the project manager, NOT the developer. Never modify files in your own running directory. All development happens in a temporary clone.
+## ⛔ Hard Rules (NEVER violate)
+
+1. **You are the project manager, NOT the developer.** You MUST NOT write, edit, or modify any source code yourself. All code changes come from Codex ONLY.
+2. **Never modify your own running directory.** All work happens in `/tmp`.
+3. **If Codex fails or produces no changes → STOP.** Do not attempt manual fixes. Do not write code. Just clean up and report "Codex failed" in the issue comment.
+4. **Never modify production code to make tests pass.** If tests fail, the fix is wrong — abandon.
 
 ## Step 1: Find an issue
 
@@ -20,8 +25,6 @@ If no issues found, stop.
 
 ## Step 2: Create isolated workspace
 
-Clone the repo into a temporary directory. Never develop in the bot's own running directory.
-
 ```bash
 WORK_DIR=$(mktemp -d)/nanobot-auto
 git clone git@github.com:l1veIn/nanobot-auto.git "$WORK_DIR"
@@ -29,23 +32,36 @@ cd "$WORK_DIR"
 git checkout -b fix/issue-<NUMBER>
 ```
 
-## Step 3: Delegate to Codex (YOLO mode)
+## Step 3: Delegate to Codex
 
-Run Codex in the isolated workspace:
+Run Codex in the isolated workspace. **This is the ONLY step that produces code changes.**
 
 ```bash
-cd "$WORK_DIR" && codex --approval-mode full-auto "You are working on GitHub issue #<NUMBER> in repo l1veIn/nanobot-auto. The issue title is: <TITLE>. The issue body is: <BODY>. Please read the relevant source code, implement the fix or enhancement, and run 'python -m py_compile' on any modified .py files to verify syntax. If there are tests in tests/, run 'python -m pytest tests/ -x --tb=short' as well."
+cd "$WORK_DIR" && codex --approval-mode full-auto \
+  "You are working on GitHub issue #<NUMBER> in repo l1veIn/nanobot-auto.
+   Title: <TITLE>
+   Body: <BODY>
+   
+   Rules:
+   - Read the relevant source code first
+   - Implement the fix or enhancement
+   - Do NOT modify production code just to make tests pass
+   - Run 'python -m py_compile' on any modified .py files
+   - If there are tests, run 'python -m pytest tests/ -x --tb=short'"
 ```
 
-Wait for Codex to complete. If Codex fails or is not available, skip to cleanup.
+Wait for Codex to complete.
 
-## Step 4: Verify Codex output
+## Step 4: Verify output
 
 ```bash
 cd "$WORK_DIR" && git diff --stat
 ```
 
-If no changes were made, skip to cleanup.
+**Decision tree:**
+- No changes → go to Step 6 (cleanup)
+- Changes exist → check if they make sense for the issue
+- Production code modified just for test convenience → `git checkout -- <file>` to revert, then go to Step 6
 
 ## Step 5: Commit, push, create PR
 
@@ -56,7 +72,10 @@ git commit -m "fix: <description> (closes #<NUMBER>)"
 git push origin fix/issue-<NUMBER>
 gh pr create --repo l1veIn/nanobot-auto \
   --title "fix: <description>" \
-  --body "Closes #<NUMBER> — developed by Codex in full-auto mode."
+  --body "Closes #<NUMBER>
+
+Developed by Codex in full-auto mode. Changes:
+<paste git diff --stat output here>"
 ```
 
 ## Step 6: Cleanup
@@ -67,4 +86,13 @@ Always run this, even if previous steps failed:
 rm -rf "$WORK_DIR"
 ```
 
-The bot's running directory is never touched. Safe, isolated, disposable.
+## Step 7: Report failure (if applicable)
+
+If Codex failed or produced no usable changes, comment on the issue:
+
+```bash
+gh issue comment <NUMBER> --repo l1veIn/nanobot-auto \
+  --body "auto-dev attempted this issue but Codex could not produce a valid fix. Leaving open for next cycle or manual intervention."
+```
+
+This ensures the issue stays visible and the system learns what kind of tasks Codex struggles with.
