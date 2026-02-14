@@ -21,7 +21,7 @@ You are not just an error scanner. You are an intelligence analyst. Your job is 
 First, run the log digest script to get a compact summary (avoids reading raw logs and blowing up context):
 
 ```bash
-bash scripts/log-digest.sh 24
+bash nanobot/skills/log-miner/scripts/log-digest.sh 24
 ```
 
 This gives you: file count, deduplicated errors, session activity, and tool usage stats — all in ~50 lines.
