@@ -14,9 +14,21 @@ You are not just an error scanner. You are an intelligence analyst. Your job is 
 
 ## Step 1: Gather data
 
+First, run the log digest script to get a compact summary (avoids reading raw logs and blowing up context):
+
 ```bash
-find ~/.nanobot/sessions -name '*.jsonl' -mtime -1
+bash scripts/log-digest.sh 24
 ```
+
+This gives you: file count, deduplicated errors, session activity, and tool usage stats — all in ~50 lines.
+
+Only if the digest reveals something interesting, read specific raw log lines for context:
+
+```bash
+head -50 ~/.nanobot/sessions/<specific_file>.jsonl
+```
+
+**Never read entire raw log files.** Use targeted reads.
 
 Read the content of recent log files. Don't just grep keywords — **read and understand the conversations**.
 
