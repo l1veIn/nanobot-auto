@@ -221,7 +221,90 @@ Fixed cron (20:00 / 00:30 / 02:00) is the **slowest viable strategy**. Per OODA 
 
 ---
 
-## 5. Experiment Plan
+## 5. Recording & Analysis Strategy
+
+> *Consolidated from TEP runs #3 and #4, plus code-level instrumentation analysis.*
+
+The quality of self-evolution is bounded by the quality of the data the system collects about itself. SICA's advantage is that its "user data" (benchmark execution traces) is inherently structured. nanobot-auto's raw runtime logs are unstructured — this gap must be closed.
+
+### 5.1 Recording: Tool-Call Event Log
+
+**Every Agent action is a tool call.** The `Tool.execute()` method in `nanobot/agent/loop.py` is the single unified entry point for all agent behavior (file I/O, shell commands, API calls, messaging). Instrumenting this one location captures all agent activity automatically.
+
+**Event schema:**
+```json
+{
+  "case_id": "cycle_042",
+  "activity": "filesystem.read",
+  "skill": "auto-dev",
+  "timestamp": "2025-02-16T00:30:15Z",
+  "args_summary": "{path: /tmp/fix/loop.py}",
+  "success": true,
+  "duration_ms": 150
+}
+```
+
+**Output format:** XES-compatible event log → directly consumable by pm4py for process mining.
+
+**Implementation cost:** ~20 lines in `loop.py`, zero changes to individual tools.
+
+### 5.2 Analysis: Process Mining + LLM Hybrid
+
+Two analysis tracks, each playing to its strengths:
+
+| Track | Tool | Strengths | Scope |
+|-------|------|-----------|-------|
+| **Deterministic** | pm4py | No hallucination, formally grounded, handles conformance | Control-flow patterns, timing, variant distribution |
+| **Semantic** | LLM (log-miner) | Context understanding, natural language, causal reasoning | Root cause inference, fix planning, language-level constraints |
+
+**pm4py provides three capabilities:**
+
+1. **Process Discovery** — Automatically discover the actual execution flow from event logs (Inductive Miner). Answers: "What does the system actually do vs. what we think it does?"
+2. **Conformance Checking** — Encode CONSTITUTION.md's formalizable rules as a Petri Net reference model, auto-detect violations. (e.g., Article 1: log-miner must not emit `write_file` events)
+3. **Variant Analysis** — Track how the distribution of process variants changes over time → direct measurement of P2 (distribution shift)
+
+**LLM handles what pm4py cannot:**
+- Semantic constraints (e.g., "every cycle must produce at least one Issue")
+- Causal reasoning ("this error was introduced by PR #55")
+- Fix strategy generation
+
+**Data flow:**
+```
+Tool calls → XES Event Log → pm4py → Conformance Report ─┐
+                                                          ├→ LLM (Sense) → Issues
+                          Cycle Report (narrative MD) ─────┘
+```
+
+### 5.3 Cycle Report (LLM Context Layer)
+
+Each component appends its section after execution:
+1. log-miner → "What was observed" + "Issues created"
+2. auto-dev → "What was done" + "PR details"  
+3. auto-merge → "Outcome" + "Health Vector Delta"
+
+Context window management: sliding window of 3 recent full reports + 30-day compressed summaries (~10K tokens total).
+
+### 5.4 Key Principles
+
+1. **Data collection is never done by LLM.** Event logging and metric snapshots are deterministic scripts. LLM only interprets.
+2. **Tool calls are the natural event granularity.** Not high-level stages, not raw log lines.
+3. **pm4py doesn't replace LLM; it feeds LLM.** Conformance reports become part of LLM input context.
+
+### 5.5 Open Question: Human Input as External Signal
+
+> **Status:** Identified 2025-02-16, not yet resolved.
+
+The current R&A strategy only covers **system-generated data** (tool calls, logs, metrics). But nanobot-auto receives **human input** via 9 communication channels (Feishu, Telegram, Discord, etc.). This breaks the "closed loop" assumption:
+
+- Human input is the highest-priority signal (VSM S4: external intelligence)
+- Human intent/priority is not captured by tool-call event logs
+- The system may be **human-machine co-evolution**, not pure self-evolution
+
+This may require redefining OCLSE from "closed loop" to "semi-open loop with external input." Deferred to next session.
+
+---
+
+## 6. Experiment Plan
 
 ### Experiment 1: Baseline Observation (Weeks 1-4)
 
@@ -272,7 +355,7 @@ Week 10:    Analysis & write-up
 
 ---
 
-## 6. Expected Contribution
+## 7. Expected Contribution
 
 If experiments validate the hypotheses:
 
@@ -287,10 +370,12 @@ If experiments validate the hypotheses:
 
 ---
 
-## 7. References
+## 8. References
 
 - Robeyns, M., Szummer, M., & Aitchison, L. (2025). *Self-Improving Coding Agent.* NeurIPS 2025.
 - Kephart, J. O., & Chess, D. M. (2003). *The Vision of Autonomic Computing.* IEEE Computer, 36(1). (MAPE-K)
+- van der Aalst, W. M. P. (2016). *Process Mining: Data Science in Action.* Springer. (Process Mining, pm4py)
+- Berti, A., van Zelst, S., & van der Aalst, W. M. P. (2024). *PM4Py and LLM integration.* arXiv.
 - DORA Team, Google. (2024). *Accelerate State of DevOps Report.*
 - SWE-Effi. (2025). *Multi-dimensional efficiency evaluation for SWE agents.* arXiv.
 - Campbell, G. A. (2018). *Cognitive Complexity: A new way of measuring understandability.* SonarSource.
@@ -299,4 +384,4 @@ If experiments validate the hypotheses:
 
 ---
 
-*Document generated via TEP v2.0 adversarial deduction (2 runs, 6 rounds total). Reviewed and committed by human operator.*
+*Document generated via TEP v2.0 adversarial deduction (4 runs, 12 rounds total). Reviewed and committed by human operator.*
