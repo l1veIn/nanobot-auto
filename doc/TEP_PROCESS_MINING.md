@@ -17,22 +17,24 @@
 
 ### 🔴 RED
 
-**A — 事件日志太稀疏。** nanobot-auto 每天 1 个 cycle = 1 条 trace。流程挖掘算法（Alpha Miner、Inductive Miner）通常需要数百条 trace 才能发现有意义的模型。30 天 = 30 条 trace，统计上远不够。Conformance Checking 的 fitness/precision 指标在这个量级下不可靠。
+**A — 事件日志太稀疏。** ~~nanobot-auto 每天 1 个 cycle = 1 条 trace。~~ **[已被后续熵注入修正]** cycle 频率不固定——可以链式触发、主动触发、被动触发，一天可能有多个 cycle。稀疏性问题**部分消解**，但仍需注意初期数据积累。
 
-**B — 流程太简单。** 当前流程是严格线性的：miner → dev → merge。没有分支、没有并行、没有循环。对这种链式流程做 Process Discovery 没有信息增益——你已经知道流程长什么样了。流程挖掘的价值在于**发现你不知道的实际流程**，但这里实际流程和设计流程完全一致。
+**B — 流程太简单。** ~~当前流程是严格线性的：miner → dev → merge。~~ **[已被后续熵注入修正]** 实际流程有多种变体（链式触发、主动跳过 miner、被动紧急响应等），且不同触发方式本身就是不同的 process variant：
 
 **C — Conformance Checking 的前提不满足。** 一致性检查需要两个输入：(1) 参考模型 (2) 事件日志。CONSTITUTION.md 是自然语言规则，不是 Petri Net。将其形式化为 Petri Net 需要手动建模，且很多规则（如"不可修改 CONSTITUTION"）是语义级约束，无法用控制流模型表达。
 
 ### 🔵 BLUE
 
-**对 A** — 承认稀疏性问题，但可以**提高事件粒度**来弥补。一个 cycle 不是一条 trace，而是一条**多事件 trace**。如果记录细粒度事件（进入函数、调用 API、创建文件、LLM 推理...），一个 cycle 可能产生 50-200 个事件。30 天 = 30 条 trace × 100 事件 = 3000 个事件点。这对 Inductive Miner 来说够了。
+**对 A** — 稀疏性通过两种方式缓解：
+1. **可变频率**：链式/主动/被动触发意味着一天可能有多个 cycle
+2. **细粒度事件**：每个 cycle 包含数十到上百个工具调用事件
 
-**对 B** — 表面线性，但实际有变体：
-- 正常路径: miner → issue → dev → PR → merge ✅
-- 失败路径: miner → issue → dev → PR → CI fail → reject ❌
-- 空路径: miner → no issue found → skip
-- 重试路径: miner → issue → dev → Codex timeout → retry
-- 这些**变体间的分布变化**本身就是 P2（分布漂移）的直接度量。
+**对 B** — 实际变体丰富：
+- Variant 1: cron → miner → dev → merge (日常)
+- Variant 2: critical_error → miner → dev → merge (被动触发)
+- Variant 3: user_command → dev → merge (主动，跳过 miner)
+- Variant 4: merge → miner → dev → merge (链式触发)
+- 变体的分布变化本身就是 P2（分布漂移）的直接度量。
 
 **对 C** — 不需要把整个 CONSTITUTION 形式化。只形式化**控制流约束**部分：
 - Article 1（角色分离）→ 可编码为"miner 不出现 code_write 事件"
@@ -49,7 +51,7 @@
 
 **D — 过度工程风险。** pm4py 是一个重型库——Petri Net、alignment 算法、XES 解析。为了分析一个三步 pipeline 引入这套基础设施，是否值得？直接写一个 Python 脚本统计 "成功/失败/跳过" 的比例就能达成 80% 的分析目标。
 
-**E — 事件定义是隐藏的大工程。** 蓝队说"提高事件粒度"，但谁来定义哪些事件值得记录？在代码中埋点需要修改每个 skill 的实现。这不是引入 pm4py 就自动获得的——这是大量的手动 instrumentation 工作。
+**E — 事件定义是隐藏的大工程。** 蓝队说"提高事件粒度"，但谁来定义哪些事件值得记录？在代码中埋点需要修改每个 skill 的实现。
 
 ### 🔵 BLUE
 
@@ -57,16 +59,21 @@
 1. **系统复杂度增长后**：当 pipeline 从三步变成十步（加入 K 层、Review 层、事件触发等），手写脚本无法 scale
 2. **学术贡献**：用流程挖掘分析自演化 agent 是一个**新颖的交叉研究方向**，本身可发表
 
-**对 E** — 接受。事件定义应从最小集开始：
+**对 E** — **[被后续代码分析彻底解决]** Agent 的所有行为都是工具调用（读文件、写文件、执行命令、API 调用）。`Tool.execute()` 是统一入口，只需在此一处埋点：
 
-| 事件 | 来源 | 自动/手动 |
-|------|------|----------|
-| skill_start / skill_end | agent loop | 自动（已有） |
-| issue_created / issue_skipped | log-miner | 需埋点 |
-| codex_called / codex_result | auto-dev | 需埋点 |
-| pr_created / ci_result / merged / rejected | auto-merge | 需埋点 |
+```json
+{
+  "case_id": "cycle_042",
+  "activity": "filesystem.read",
+  "skill": "auto-dev",
+  "timestamp": "2025-02-16T00:30:15Z",
+  "args_summary": "{path: /tmp/fix/loop.py}",
+  "success": true,
+  "duration_ms": 150
+}
+```
 
-**约 8 个事件类型，6 个埋点。** 工作量可控。
+**实现成本：~20 行代码改 `loop.py` 一个文件，零工具实现改动。** auto-dev 大量读写文件的行为自动被捕获，工具故障→dev 失败的因果链自动可追踪。
 
 ---
 
@@ -104,7 +111,7 @@
 
 | Phase | 做什么 | 需要 pm4py？ |
 |-------|--------|-------------|
-| **Phase 0** | 定义 8 个核心事件 + 埋点 + 输出 XES 日志 | ❌ 只写 XES 文件 |
+| **Phase 0** | Tool.execute() 埋点 + 输出 XES 事件日志 | ❌ 只写 XES 文件 |
 | **Phase 1** | CONSTITUTION 控制流约束 → Petri Net + conformance checking | ✅ |
 | **Phase 2** | Process variant 分布变化 → P2 检测 | ✅ |
 

@@ -21,6 +21,7 @@ from nanobot.agent.tools.cron import CronTool
 from nanobot.agent.memory import MemoryStore
 from nanobot.agent.subagent import SubagentManager
 from nanobot.session.manager import SessionManager
+from nanobot.agent import tracer
 
 
 class AgentLoop:
@@ -74,6 +75,10 @@ class AgentLoop:
             exec_config=self.exec_config,
             restrict_to_workspace=restrict_to_workspace,
         )
+        
+        # Initialize XES event tracer
+        log_dir = Path.home() / ".nanobot" / ".logs"
+        tracer.configure(log_dir=log_dir)
         
         self._running = False
         self._register_default_tools()
@@ -162,6 +167,11 @@ class AgentLoop:
         
         preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
         logger.info(f"Processing message from {msg.channel}:{msg.sender_id}: {preview}")
+        
+        # Set tracer context for this message
+        from datetime import datetime
+        case_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{msg.channel}"
+        tracer.set_case_id(case_id)
         
         # Get or create session
         key = session_key or msg.session_key
