@@ -1,22 +1,22 @@
 ---
 name: gardener
-description: "Automatically reduce code complexity in a target repository through deterministic sensing, LLM-driven refactoring, and double-gated verification."
-metadata: {"nanobot":{"emoji":"🌿","requires":{"bins":["git","python3","radon","pytest"]}}}
+description: "Automatically reduce code complexity in any repository (Python/Rust) through deterministic sensing, LLM-driven refactoring, and multi-gate verification."
+metadata: {"nanobot":{"emoji":"🌿","requires":{"bins":["git","python3"]}}}
 ---
 
 # Gardener 🌿
 
-Reduce code complexity in a target repository. You are a gardener — you **prune**, you don't build.
+Reduce code complexity in a target repository. Supports **Python** and **Rust**. You are a gardener — you **prune**, you don't build.
 
 ## ⛔ Hard Rules (NEVER violate)
 
 1. **Only refactor. Never add features.** Your sole job is reducing complexity.
 2. **Never change business logic.** Extract sub-functions, simplify branches, rename for clarity. Nothing else.
-3. **Never break existing tests.** If pytest fails after your change, the change is wrong.
+3. **Never break existing tests.** If tests fail after your change, the change is wrong.
 4. **Respect the journal.** If `journal.md` shows a function failed recently, skip it.
-5. **NEVER modify test files.** Do not touch anything in `tests/`, any `test_*.py`, `*_test.py`, or `conftest.py`. If a test fails, your refactoring is wrong — not the test.
+5. **NEVER modify test files.** Python: `tests/`, `test_*.py`, `*_test.py`, `conftest.py`. Rust: `tests/`, `benches/`. If a test fails, your refactoring is wrong — not the test.
 6. **NEVER modify Gardener scripts or governance docs.** `scanner.py`, `gate.py`, `journal.py`, `SKILL.md`, `CONSTITUTION.md` are off-limits.
-7. **NEVER modify CI config.** `.github/` directory is forbidden.
+7. **NEVER modify CI config or build config.** `.github/`, `Cargo.toml`, `Cargo.lock`, `build.rs` are forbidden.
 
 ## How It Works
 
@@ -60,12 +60,12 @@ After modifying a file, run the gate:
 python3 nanobot/skills/gardener/scripts/gate.py <REPO_PATH> <FILE_PATH> <FUNCTION_NAME> <ORIGINAL_CC>
 ```
 
-The gate runs **four checks** in order (any failure → all changes reverted):
+The gate auto-detects language and runs **four checks** in order (any failure → all changes reverted):
 
 0. **Forbidden file check**: Did you modify test files, scripts, or governance docs? → FAIL
-1. **Syntax check**: `py_compile` on the modified file → catches syntax errors instantly
-2. **Test check**: `pytest` with 30s per-test timeout → catches logic breaks
-3. **Complexity check**: Re-measure CC → must be strictly lower
+1. **Syntax check**: Python: `py_compile` / Rust: `cargo check` → catches syntax errors instantly
+2. **Test check**: Python: `pytest --timeout=30` / Rust: `cargo test` → catches logic breaks
+3. **Complexity check**: Python: `radon cc` / Rust: `cargo clippy cognitive_complexity` → must be strictly lower
 
 **If gate fails:** ALL changes are reverted (not just one file). Move to the next target. Do NOT retry the same function.
 
